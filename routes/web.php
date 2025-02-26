@@ -14,6 +14,6 @@ use Modules\Review\Http\Controllers\ReviewController;
 |
 */
 
-Route::group([], function () {
-    Route::resource('review', ReviewController::class)->names('review');
-});
+// Route::group([], function () {
+//     Route::resource('review', ReviewController::class)->names('review');
+// });
