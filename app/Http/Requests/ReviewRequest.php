@@ -11,8 +11,11 @@ class ReviewRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
-            //
+        return [            
+            'rating' => 'required|integer|between:1,5',
+            'comment' => 'nullable|string|max:1000',
+            'attachments' => 'nullable|array',
+            'attachments.*' => 'image|mimes:jpeg,png,jpg|max:2048',
         ];
     }
 

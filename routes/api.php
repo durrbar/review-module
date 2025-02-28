@@ -15,5 +15,11 @@ use Modules\Review\Http\Controllers\ReviewController;
 */
 
 Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
-    Route::apiResource('review', ReviewController::class)->names('review');
+    Route::prefix('{modelType}/{modelId}/review')->name('review.')->group(function () {
+        Route::apiResource('/', ReviewController::class)->parameters(['' => 'review']);
+
+        // Helpful count update routes
+        Route::patch('{review}/helpful/increment', [ReviewController::class, 'incrementHelpful'])->name('helpful.increment');
+        Route::patch('{review}/helpful/decrement', [ReviewController::class, 'decrementHelpful'])->name('helpful.decrement');
+    });
 });
