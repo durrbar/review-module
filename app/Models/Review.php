@@ -2,93 +2,97 @@
 
 namespace Modules\Review\Models;
 
-use App\Models\Image;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\MorphMany;
-use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Modules\Comment\Models\Comment;
+use Modules\Ecommerce\Models\AbusiveReport;
+use Modules\Ecommerce\Models\Feedback;
+use Modules\Ecommerce\Models\Product;
 use Modules\User\Models\User;
-
-// use Modules\Review\Database\Factories\ReviewFactory;
 
 class Review extends Model
 {
-    use HasFactory;
-    use HasUuids;
     use SoftDeletes;
 
-    /**
-     * The table associated with the model.
-     */
     protected $table = 'reviews';
 
-    /**
-     * The attributes that are mass assignable.
-     */
-    protected $fillable = [
-        'user_id',
-        'rating',
-        'comment',
-        'is_purchased',
-        'helpful'
-    ];
+    public $guarded = [];
 
-    /**
-     * The attributes that should be cast.
-     */
     protected $casts = [
-        'is_purchased' => 'boolean', // Cast 'is_purchased' to boolean
-        'rating' => 'float', // Cast 'rating' to float
-        'helpful' => 'integer', // Cast 'helpful' to integer
-        'created_at' => 'datetime', // Cast 'created_at' to a Carbon instance
-        'updated_at' => 'datetime', // Cast 'updated_at' to a Carbon instance
-        'deleted_at' => 'datetime', // Cast 'deleted_at' to a Carbon instance
+        'photos' => 'json',
     ];
 
-    // protected static function newFactory(): ReviewFactory
-    // {
-    //     // return ReviewFactory::new();
-    // }
+    protected $appends = [
+        'positive_feedbacks_count',
+        'negative_feedbacks_count',
+        'my_feedback',
+        'abusive_reports_count',
+    ];
 
-    public function reviewable(): MorphTo
+    public function product(): BelongsTo
     {
-        return $this->morphTo();
+        return $this->BelongsTo(Product::class, 'product_id');
+    }
+
+    public function user(): belongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
     }
 
     /**
-     * Get all of the review's comments.
+     * Get all of the reviews feedbacks.
      */
-    public function comments(): MorphMany
+    public function feedbacks()
     {
-        return $this->morphMany(Comment::class, 'commentable');
+        return $this->morphMany(Feedback::class, 'model');
+    }
+
+    public function abusive_reports()
+    {
+        return $this->morphMany(AbusiveReport::class, 'model');
     }
 
     /**
-     * Return the user relationship.
+     * Positive feedback count of review .
+     *
+     * @return int
      */
-    public function user(): BelongsTo
+    public function getPositiveFeedbacksCountAttribute()
     {
-        return $this->belongsTo(User::class);
+        return $this->feedbacks()->wherePositive(1)->count();
     }
 
-    public function attachments(): MorphMany
+    /**
+     * Negative feedback count of review .
+     *
+     * @return int
+     */
+    public function getNegativeFeedbacksCountAttribute()
     {
-        return $this->morphMany(Image::class, 'imageable');
+        return $this->feedbacks()->whereNegative(1)->count();
     }
 
-    public function incrementHelpful(): void
+    /**
+     * Get authenticated user feedback
+     *
+     * @return object | null
+     */
+    public function getMyFeedbackAttribute()
     {
-        $this->increment('helpful');
-    }
-
-    public function decrementHelpful(): void
-    {
-        if ($this->helpful > 0) {
-            $this->decrement('helpful');
+        if (auth()->user()) {
+            return $this->feedbacks()->where('user_id', auth()->user()->id)->first();
         }
+
+        return null;
+    }
+
+    /**
+     * Count no of abusive reports in the review.
+     *
+     * @return int
+     */
+    public function getAbusiveReportsCountAttribute()
+    {
+        return $this->abusive_reports()->count();
     }
 }

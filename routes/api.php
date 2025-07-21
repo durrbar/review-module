@@ -14,8 +14,8 @@ use Modules\Review\Http\Controllers\ReviewController;
  *
 */
 
-Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
-    Route::prefix('{modelType}/{modelId}/review')->name('review.')->group(function () {
+Route::middleware(['auth:sanctum'])->prefix('v1')->group(function (): void {
+    Route::prefix('{modelType}/{modelId}/review')->name('review.')->group(function (): void {
         Route::apiResource('/', ReviewController::class)->parameters(['' => 'review']);
 
         // Helpful count update routes

@@ -2,167 +2,133 @@
 
 namespace Modules\Review\Http\Controllers;
 
-use App\Http\Controllers\Controller;
-use Illuminate\Database\Eloquent\Relations\Relation;
-use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
-use Modules\Review\Http\Requests\ReviewRequest;
-use Modules\Review\Http\Resources\ReviewResource;
-use Modules\Review\Models\Review;
+use Illuminate\Http\Request;
+use Modules\Core\Exceptions\DurrbarException;
+use Modules\Core\Http\Controllers\CoreController;
+use Modules\Order\Models\Order;
+use Modules\Review\Http\Requests\ReviewCreateRequest;
+use Modules\Review\Http\Requests\ReviewUpdateRequest;
+use Modules\Review\Repositories\ReviewRepository;
+use Modules\Settings\Repositories\SettingsRepository;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
-class ReviewController extends Controller
+class ReviewController extends CoreController
 {
-    use AuthorizesRequests;
+    public $repository;
+
+    public $settingsRepository;
+
+    public function __construct(ReviewRepository $repository, SettingsRepository $settingsRepository)
+    {
+        $this->repository = $repository;
+        $this->settingsRepository = $settingsRepository;
+    }
 
     /**
      * Display a listing of the resource.
+     *
+     * @return Collection|Review[]
      */
-    public function index($modelType, $modelId)
+    public function index(Request $request)
     {
-        $model = $this->getModelInstance($modelType, $modelId);
+        $limit = $request->limit ? $request->limit : 15;
+        if (isset($request['product_id']) && ! empty($request['product_id'])) {
+            if ($request->user() !== null) {
+                $request->user()->id; // need another way to force login
+            }
 
-        // Build the base query for comments
-        $reviews = $model->reviews()->with(['user', 'comments.user'])->paginate(2);
+            return $this->repository->where('product_id', $request['product_id'])->paginate($limit);
+        }
 
-        return response()->json(['reviews' => $reviews], Response::HTTP_OK);
+        return $this->repository->paginate($limit);
     }
 
     /**
      * Store a newly created resource in storage.
+     *
+     * @return mixed
+     *
+     * @throws Exception
      */
-    public function store(ReviewRequest $request, $modelType, $modelId)
+    public function store(ReviewCreateRequest $request)
     {
-        $validatedData = $request->validated();
+        $setting = $this->settingsRepository->first();
+        $product_id = $request['product_id'];
+        $order_id = $request['order_id'];
+        try {
+            $hasProductInOrder = Order::where('id', $order_id)->whereHas('products', function ($q) use ($product_id): void {
+                $q->where('product_id', $product_id);
+            })->exists();
 
-        $model = $this->getModelInstance($modelType, $modelId);
-
-        $review = $model->reviews()->create([
-            'user_id' => Auth::id(),
-            'rating' => $validatedData['rating'],
-            'comment' => $validatedData['comment']
-        ]);
-
-        // Handle attachments if provided
-        if ($request->hasFile('attachments')) {
-            foreach ($request->file('attachments') as $image) {
-                $path = $image->store('uploads/reviews/attachments', 'public');
-
-                $review->attachments()->create([
-                    'path' => $path,
-                ]);
+            if ($hasProductInOrder === false) {
+                throw new ModelNotFoundException(NOT_FOUND);
             }
-        }
 
-        // Return the newly created comment as a resource
-        return response()->json(['review' => new ReviewResource($review->load('user', 'attachments'))], Response::HTTP_CREATED);
-    }
+            $user_id = $request->user()->id;
+            $request['user_id'] = $user_id;
 
-    /**
-     * Show the specified resource.
-     */
-    public function show($modelType, $modelId, Review $review): JsonResponse
-    {
-        // Authorize the action using policies
-        $this->authorize('view', $review);
+            // check if the review is following conventional system.
+            if (! empty($setting->options['reviewSystem']['value']) && $setting->options['reviewSystem']['value'] === 'review_single_time') {
 
-        // Return a single comment
-        return response()->json(['review' => new ReviewResource($review)], Response::HTTP_OK);
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(ReviewRequest $request, $modelType, $modelId, Review $review): JsonResponse
-    {
-        // Authorize the action using policies
-        $this->authorize('update', $review);
-
-        $validatedData = $request->validated();
-
-        $review->update([
-            'rating' => $validatedData['rating'],
-            'comment' => $validatedData['comment']
-        ]);
-    
-        // Initialize an array to track which URLs should be kept
-        $keepUrls = [];
-    
-        // Check if new images or URLs are provided
-        if ($request->has('attachments')) {
-            foreach ($request->input('attachments') as $attachment) {
-                // If the attachment is a URL, add it to the keepUrls array
-                if (filter_var($attachment, FILTER_VALIDATE_URL)) {
-                    $keepUrls[] = $attachment;
+                // find out if any review exists or not
+                if (isset($request['variation_option_id']) && ! empty($request['variation_option_id'])) {
+                    $review = $this->repository->where('user_id', $user_id)->where('order_id', $order_id)->where('product_id', $product_id)->where('shop_id', $request['shop_id'])->where('variation_option_id', $request['variation_option_id'])->get();
                 } else {
-                    // Otherwise, it's assumed to be a new file upload
-                    $path = $attachment->store('uploads/reviews/attachments', 'public');
-                    $review->attachments()->create([
-                        'path' => $path,
-                    ]);
+                    $review = $this->repository->where('user_id', $user_id)->where('order_id', $order_id)->where('product_id', $product_id)->where('shop_id', $request['shop_id'])->get();
+                }
+
+                if (count($review)) {
+                    throw new HttpException(400, ALREADY_GIVEN_REVIEW_FOR_THIS_PRODUCT);
                 }
             }
-        }
-    
-        // Now, remove attachments that are not in the keepUrls
-        foreach ($review->attachments as $attachment) {
-            if (!in_array($attachment->url, $keepUrls)) {
-                Storage::disk('public')->delete($attachment->path);
-                $attachment->delete();
-            }
-        }
 
-        // Return updated comment as a resource
-        return response()->json(['review' => new ReviewResource($review->load('user', 'comments.user', 'attachments'))], Response::HTTP_OK);
+            return $this->repository->storeReview($request);
+        } catch (DurrbarException $e) {
+            throw new DurrbarException(ALREADY_GIVEN_REVIEW_FOR_THIS_PRODUCT);
+        }
+    }
+
+    public function show($id)
+    {
+        try {
+            return $this->repository->findOrFail($id);
+        } catch (DurrbarException $e) {
+            throw new DurrbarException(NOT_FOUND);
+        }
+    }
+
+    public function update(ReviewUpdateRequest $request, $id)
+    {
+        $request->merge(['id' => $id]);
+        try {
+            return $this->updateReview($request);
+        } catch (DurrbarException $th) {
+            throw new DurrbarException(SOMETHING_WENT_WRONG);
+        }
+    }
+
+    public function updateReview(ReviewUpdateRequest $request)
+    {
+        $id = $request->id;
+
+        return $this->repository->updateReview($request, $id);
     }
 
     /**
      * Remove the specified resource from storage.
+     *
+     * @param  int  $id
+     * @return JsonResponse
      */
-    public function destroy($modelType, $modelId, Review $review): JsonResponse
+    public function destroy($id)
     {
-        // Authorize the action using policies
-        $this->authorize('delete', $review);
-
-        $review->delete();
-
-        return response()->json(['message' => 'Comment deleted successfully'], Response::HTTP_NO_CONTENT);
-    }
-
-    public function incrementHelpful($modelType, $modelId, Review $review)
-    {
-        $review->incrementHelpful();
-
-        return response()->json([
-            'message' => 'Helpful count incremented',
-            'helpful' => $review->helpful
-        ], Response::HTTP_OK);
-    }
-
-    public function decrementHelpful($modelType, $modelId, Review $review)
-    {
-        $review->decrementHelpful();
-
-        return response()->json([
-            'message' => 'Helpful count decremented',
-            'helpful' => $review->helpful
-        ], Response::HTTP_OK);
-    }
-
-    /**
-     * Get model instance based on type.
-     */
-    private function getModelInstance($modelType, $modelId)
-    {
-        // This resolves the model class based on the polymorphic type
-        $modelClass = Relation::getMorphedModel($modelType);
-
-        if (!$modelClass) {
-            abort(Response::HTTP_NOT_FOUND, "Invalid model type");
+        try {
+            return $this->repository->findOrFail($id)->delete();
+        } catch (DurrbarException $e) {
+            throw new DurrbarException(NOT_FOUND);
         }
-
-        return $modelClass::findOrFail($modelId);
     }
 }

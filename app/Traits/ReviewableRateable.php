@@ -21,8 +21,8 @@ trait ReviewableRateable
 
         for ($i = 5; $i >= 1; $i--) {
             $ratings[] = [
-                'name' => $i . 'star',
-                'count' => $this->reviews()->where('rating', '=', $i)->count()
+                'name' => $i.'star',
+                'count' => $this->reviews()->where('rating', '=', $i)->count(),
             ];
         }
 

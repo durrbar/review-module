@@ -4,14 +4,14 @@ namespace Modules\Review\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class ReviewRequest extends FormRequest
+class ReviewOldRequest extends FormRequest
 {
     /**
      * Get the validation rules that apply to the request.
      */
     public function rules(): array
     {
-        return [            
+        return [
             'rating' => 'required|integer|between:1,5',
             'comment' => 'nullable|string|max:1000',
             'attachments' => 'nullable|array',
