@@ -16,15 +16,15 @@ class ReviewOldResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'name' => $this->user->name,
+            'name' => $this->whenLoaded('user', fn () => $this->user->name),
             'postedAt' => $this->created_at,
             'comment' => $this->comment,
             'isPurchased' => $this->is_purchased,
             'rating' => $this->rating,
-            'avatarUrl' => $this->user->avatar_url,
+            'avatarUrl' => $this->whenLoaded('user', fn () => $this->user->avatar_url),
             'helpful' => $this->helpful,
-            'attachments' => $this->attachments->pluck('url'),
-            'user' => new UserResource($this->user),
+            'attachments' => $this->whenLoaded('attachments', fn () => $this->attachments->pluck('url'), []),
+            'user' => $this->whenLoaded('user', fn () => new UserResource($this->user)),
             'comments' => CommentResource::collection($this->whenLoaded('comments')),
         ];
     }

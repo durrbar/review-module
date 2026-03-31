@@ -67,6 +67,7 @@ class ReviewOldController extends Controller
     {
         // Authorize the action using policies
         $this->authorize('view', $review);
+        $review->loadMissing(['user', 'attachments']);
 
         // Return a single comment
         return response()->json(['review' => new ReviewOldResource($review)], Response::HTTP_OK);
