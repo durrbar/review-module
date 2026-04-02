@@ -40,7 +40,7 @@ class ReviewRepository extends BaseRepository
         'photos',
     ];
 
-    public function boot()
+    public function boot(): void
     {
         try {
             $this->pushCriteria(app(RequestCriteria::class));
@@ -51,7 +51,7 @@ class ReviewRepository extends BaseRepository
     /**
      * Configure the Model
      **/
-    public function model()
+    public function model(): string
     {
         return Review::class;
     }
