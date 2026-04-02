@@ -1,8 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Modules\Review\Models;
 
 use App\Models\Image;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -15,39 +19,19 @@ use Modules\User\Models\User;
 
 // use Modules\Review\Database\Factories\ReviewFactory;
 
+#[Table('reviews')]
+#[Fillable([
+    'user_id',
+    'rating',
+    'comment',
+    'is_purchased',
+    'helpful',
+])]
 class ReviewOld extends Model
 {
     use HasFactory;
     use HasUuids;
     use SoftDeletes;
-
-    /**
-     * The table associated with the model.
-     */
-    protected $table = 'reviews';
-
-    /**
-     * The attributes that are mass assignable.
-     */
-    protected $fillable = [
-        'user_id',
-        'rating',
-        'comment',
-        'is_purchased',
-        'helpful',
-    ];
-
-    /**
-     * The attributes that should be cast.
-     */
-    protected $casts = [
-        'is_purchased' => 'boolean', // Cast 'is_purchased' to boolean
-        'rating' => 'float', // Cast 'rating' to float
-        'helpful' => 'integer', // Cast 'helpful' to integer
-        'created_at' => 'datetime', // Cast 'created_at' to a Carbon instance
-        'updated_at' => 'datetime', // Cast 'updated_at' to a Carbon instance
-        'deleted_at' => 'datetime', // Cast 'deleted_at' to a Carbon instance
-    ];
 
     // protected static function newFactory(): ReviewFactory
     // {
@@ -90,5 +74,24 @@ class ReviewOld extends Model
         if ($this->helpful > 0) {
             $this->decrement('helpful');
         }
+    }
+
+    /**
+     * The table associated with the model.
+     */
+
+    /**
+     * The attributes that should be cast.
+     */
+    protected function casts(): array
+    {
+        return [
+            'is_purchased' => 'boolean', // Cast 'is_purchased' to boolean
+            'rating' => 'float', // Cast 'rating' to float
+            'helpful' => 'integer', // Cast 'helpful' to integer
+            'created_at' => 'datetime', // Cast 'created_at' to a Carbon instance
+            'updated_at' => 'datetime', // Cast 'updated_at' to a Carbon instance
+            'deleted_at' => 'datetime', // Cast 'deleted_at' to a Carbon instance
+        ];
     }
 }

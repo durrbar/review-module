@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Modules\Review\Http\Controllers;
 
 use App\Http\Controllers\Controller;
