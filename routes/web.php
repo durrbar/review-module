@@ -24,7 +24,7 @@ Route::apiResource('reviews', ReviewController::class, [
  * Authorized Route for Customers only
  * ******************************************
  */
-Route::group(['middleware' => ['can:'.Permission::CUSTOMER, 'auth:sanctum', 'email.verified']], function (): void {
+Route::group(['middleware' => ['can:'.Permission::Customer->value, 'auth:sanctum', 'email.verified']], function (): void {
     Route::apiResource('reviews', ReviewController::class, [
         'only' => ['store', 'update'],
     ]);
@@ -35,7 +35,7 @@ Route::group(['middleware' => ['can:'.Permission::CUSTOMER, 'auth:sanctum', 'ema
  * Authorized Route for Super Admin only
  * *****************************************
  */
-Route::group(['middleware' => ['permission:'.Permission::SUPER_ADMIN, 'auth:sanctum']], function (): void {
+Route::group(['middleware' => ['permission:'.Permission::SuperAdmin->value, 'auth:sanctum']], function (): void {
     Route::apiResource('reviews', ReviewController::class, [
         'only' => ['destroy'],
     ]);
