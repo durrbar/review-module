@@ -12,7 +12,6 @@ class RatingRemoved
     /**
      * Create the event listener.
      *
-     * @return void
      */
     public function __construct()
     {
@@ -22,9 +21,8 @@ class RatingRemoved
     /**
      * Handle the event.
      *
-     * @return void
      */
-    public function handle(RefundApproved $event)
+    public function handle(RefundApproved $event): void
     {
         Review::where('user_id', $event->refund->customer_id)->where('order_id', $event->refund->order_id)->delete();
     }
