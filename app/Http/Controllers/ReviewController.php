@@ -19,15 +19,10 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class ReviewController extends CoreController
 {
-    public $repository;
-
-    public $settingsRepository;
-
-    public function __construct(ReviewRepository $repository, SettingsRepository $settingsRepository)
-    {
-        $this->repository = $repository;
-        $this->settingsRepository = $settingsRepository;
-    }
+    public function __construct(
+        public readonly ReviewRepository $repository,
+        public readonly SettingsRepository $settingsRepository
+    ) {}
 
     /**
      * Display a listing of the resource.

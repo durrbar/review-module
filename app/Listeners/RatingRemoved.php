@@ -10,17 +10,7 @@ use Modules\Review\Models\Review;
 class RatingRemoved
 {
     /**
-     * Create the event listener.
-     *
-     */
-    public function __construct()
-    {
-        //
-    }
-
-    /**
      * Handle the event.
-     *
      */
     public function handle(RefundApproved $event): void
     {
