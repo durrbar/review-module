@@ -11,5 +11,5 @@ class ReviewCreated
     /**
      * Create a new event instance.
      */
-    public function __construct(public Review $review) {}
+    public function __construct(public readonly Review $review) {}
 }
